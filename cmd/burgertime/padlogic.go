@@ -9,6 +9,7 @@ type padTracker struct {
 	bothHeld  int  // frames Select and Start were down together
 	prevSel   bool
 	prevView  bool
+	prevLB    bool
 	connected bool
 }
 

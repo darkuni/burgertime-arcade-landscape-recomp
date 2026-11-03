@@ -8,7 +8,8 @@
 // F11 toggle full screen, Esc quit.
 //
 // Gamepad: D-pad/left stick move, A or B pepper, Select coin, Start 1 player,
-// X or Y 2 players, right bumper change view, hold Select+Start to quit.
+// X or Y 2 players, right bumper change view, left bumper toggle relaxed
+// controls (R on the keyboard), hold Select+Start to quit.
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -50,6 +52,9 @@ type app struct {
 	land   *image.RGBA
 	landIm *ebiten.Image
 	pad    padTracker
+	// relaxed forgives near misses of the four-way joystick (R key / left bumper)
+	relaxed bool
+	notice  int // frames left to show the controls message
 }
 
 // pcm streams the synthesiser as 16-bit stereo little-endian samples.
@@ -107,6 +112,12 @@ func (a *app) Update() error {
 	if pd.view {
 		a.view = (a.view + 1) % 3
 	}
+	if pd.relaxed || inpututil.IsKeyJustPressed(ebiten.KeyR) {
+		a.relaxed = !a.relaxed
+		a.notice = 150
+		saveRelaxed(a.relaxed)
+	}
+	a.g.Relaxed = a.relaxed
 	if pd.left {
 		p1 &^= game.InLeft
 	}
@@ -165,6 +176,7 @@ func (a *app) Update() error {
 }
 
 func (a *app) Draw(screen *ebiten.Image) {
+	defer a.drawNotice(screen)
 	st := video.State{VRAM: a.g.VRAM, CRAM: a.g.CRAM, Palette: a.g.Palette, VidCtl: a.g.VidCtl}
 	st.Scroll[0] = a.g.Scroll
 	img := a.r.Image(&st)
@@ -285,11 +297,12 @@ func main() {
 		showError(romProblem(err, paths))
 	}
 	a := &app{
-		g:      game.New(roms),
-		r:      video.New(roms.Decode()),
-		screen: ebiten.NewImage(video.Visible, video.Visible),
-		land:   image.NewRGBA(image.Rect(0, 0, video.LandscapeW, video.LandscapeH)),
-		landIm: ebiten.NewImage(video.LandscapeW, video.LandscapeH),
+		relaxed: loadRelaxed(),
+		g:       game.New(roms),
+		r:       video.New(roms.Decode()),
+		screen:  ebiten.NewImage(video.Visible, video.Visible),
+		land:    image.NewRGBA(image.Rect(0, 0, video.LandscapeW, video.LandscapeH)),
+		landIm:  ebiten.NewImage(video.LandscapeW, video.LandscapeH),
 	}
 	a.synth = sound.NewSynth(roms.Sound[:], sampleRate)
 	ctx := audio.NewContext(sampleRate)
@@ -306,4 +319,51 @@ func main() {
 	if err := ebiten.RunGame(a); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func (a *app) drawNotice(screen *ebiten.Image) {
+	if a.notice <= 0 {
+		return
+	}
+	a.notice--
+	msg := "CONTROLS: ORIGINAL"
+	if a.relaxed {
+		msg = "CONTROLS: RELAXED"
+	}
+	x, y := 2, 2
+	if a.view == 0 {
+		x, y = 4, 190
+	}
+	ebitenutil.DebugPrintAt(screen, msg, x, y)
+}
+
+// The control style is remembered between runs.
+func relaxedFile() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "burgertime", "controls.txt")
+}
+
+func loadRelaxed() bool {
+	if f := relaxedFile(); f != "" {
+		if b, err := os.ReadFile(f); err == nil {
+			return strings.TrimSpace(string(b)) == "relaxed"
+		}
+	}
+	return false
+}
+
+func saveRelaxed(on bool) {
+	f := relaxedFile()
+	if f == "" {
+		return
+	}
+	v := "original"
+	if on {
+		v = "relaxed"
+	}
+	_ = os.MkdirAll(filepath.Dir(f), 0o755)
+	_ = os.WriteFile(f, []byte(v+"\n"), 0o644)
 }

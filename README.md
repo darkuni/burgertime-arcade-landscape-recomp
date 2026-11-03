@@ -37,6 +37,14 @@ Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L cycle landscape / squar
 
 **Gamepad** (any standard controller, Steam Deck included): D-pad / left stick move, A or B pepper, Select = coin, Start = 1 player, X or Y = 2 players, right bumper = change view, hold Select + Start for a second to quit.
 
+### Original vs relaxed controls
+
+The arcade stick is strictly four-way and unforgiving: two directions at once do nothing, and the chef only climbs when he is almost exactly lined up with a ladder (or level with a floor). Press **R** (keyboard) or the **left bumper** (gamepad) to switch between:
+
+- **Original** (default) - exactly the arcade behaviour.
+- **Relaxed** - same maze rules, but near misses are forgiven: a diagonal picks the direction you can actually use (up/down first), a ladder or floor within about 8 pixels pulls the chef into line, and left+right or up+down cancel. The choice is remembered between runs.
+
+
 ## Releases
 
 Publishing a GitHub release runs `.github/workflows/release.yml`, which builds

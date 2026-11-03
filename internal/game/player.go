@@ -18,6 +18,11 @@ func (g *Game) sub_d27e() {
 		y = 0
 	}
 	pad := func() byte { return ^g.Rd(0x4000 + y) }
+	var assisted byte
+	if g.Relaxed {
+		assisted = g.relaxInput(pad())
+		pad = func() byte { return assisted }
+	}
 	if pad()&InButton != 0 {
 		if R[0xb9] == 0 {
 			p := R[zPepper+uint16(x)]

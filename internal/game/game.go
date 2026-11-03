@@ -65,6 +65,9 @@ type Game struct {
 	resume  chan struct{}
 	yield   chan struct{}
 	started bool
+	// Relaxed forgives near misses of the four-way joystick (see relaxed.go).
+	Relaxed bool
+
 	// Dev hooks (nil in the shipped game).
 	Legacy Legacy
 
