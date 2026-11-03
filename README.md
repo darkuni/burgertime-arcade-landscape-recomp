@@ -16,3 +16,9 @@ The sound sequencer produces the same AY register writes as the original sound C
 
 ## Controls
 Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L square pixels / cabinet 3:4 shape, F11 full screen, Esc quit.
+
+## Releases
+
+Publishing a GitHub release runs `.github/workflows/release.yml`, which builds
+`burgertime.exe` (Windows) and `BurgerTime-mac.zip` (universal macOS app) and attaches
+them to the release. Neither contains the ROM: put your own `btimem.zip` next to the game.
