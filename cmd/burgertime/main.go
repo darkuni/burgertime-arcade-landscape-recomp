@@ -6,6 +6,9 @@
 // Controls:  arrows move, Z pepper, 5 insert coin, 1 / 2 start one / two player
 // game, L cycle landscape / original square / cabinet 3:4,
 // F11 toggle full screen, Esc quit.
+//
+// Gamepad: D-pad/left stick move, A or B pepper, Select coin, Start 1 player,
+// X or Y 2 players, right bumper change view, hold Select+Start to quit.
 package main
 
 import (
@@ -46,6 +49,7 @@ type app struct {
 	view   int
 	land   *image.RGBA
 	landIm *ebiten.Image
+	pad    padTracker
 }
 
 // pcm streams the synthesiser as 16-bit stereo little-endian samples.
@@ -96,14 +100,42 @@ func (a *app) Update() error {
 	if down(ebiten.KeyZ) || down(ebiten.KeySpace) {
 		p1 &^= game.InButton
 	}
+	pd := a.pad.poll()
+	if pd.quit {
+		return ebiten.Termination
+	}
+	if pd.view {
+		a.view = (a.view + 1) % 3
+	}
+	if pd.left {
+		p1 &^= game.InLeft
+	}
+	if pd.right {
+		p1 &^= game.InRight
+	}
+	if pd.up {
+		p1 &^= game.InUp
+	}
+	if pd.down {
+		p1 &^= game.InDown
+	}
+	if pd.fire {
+		p1 &^= game.InButton
+	}
 	sys := byte(0x07)
+	if pd.start1 {
+		sys &^= game.SysStart1
+	}
+	if pd.start2 {
+		sys &^= game.SysStart2
+	}
 	if down(ebiten.Key1) {
 		sys &^= game.SysStart1
 	}
 	if down(ebiten.Key2) {
 		sys &^= game.SysStart2
 	}
-	coinPressed := inpututil.IsKeyJustPressed(ebiten.Key5)
+	coinPressed := inpututil.IsKeyJustPressed(ebiten.Key5) || pd.coin
 	if coinPressed {
 		a.coin = 3
 	}

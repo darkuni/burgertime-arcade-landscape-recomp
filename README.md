@@ -35,6 +35,8 @@ version of the game and are not supported yet.
 ## Controls
 Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L cycle landscape / square / cabinet 3:4, F11 full screen, Esc quit.
 
+**Gamepad** (any standard controller, Steam Deck included): D-pad / left stick move, A or B pepper, Select = coin, Start = 1 player, X or Y = 2 players, right bumper = change view, hold Select + Start for a second to quit.
+
 ## Releases
 
 Publishing a GitHub release runs `.github/workflows/release.yml`, which builds
