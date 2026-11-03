@@ -124,16 +124,29 @@ func (a *ay) step(r *[16]byte) float64 {
 	}
 	var sum float64
 	for c := 0; c < 3; c++ {
-		toneOn := a.level[c] || r[7]>>uint(c)&1 != 0
+		toneOff := r[7]>>uint(c)&1 != 0
 		noiseOn := a.noiseHi || r[7]>>uint(3+c)&1 != 0
-		if !(toneOn && noiseOn) {
+		// A tone period of 0-2 is a 23-94 kHz square wave: inaudible on the
+		// board (the music engine parks resting voices at period 0 with the
+		// volume left up). Sampled at the audio rate it would alias into a
+		// loud buzz, so it is replaced by its average level.
+		p := int(r[2*c]) | int(r[2*c+1]&15)<<8
+		gain := 1.0
+		switch {
+		case toneOff:
+		case p <= 2:
+			gain = 0.5
+		case !a.level[c]:
+			continue
+		}
+		if !noiseOn {
 			continue
 		}
 		v := int(r[8+c] & 15)
 		if r[8+c]&0x10 != 0 {
 			v = a.envLvl
 		}
-		sum += ayVolume[v]
+		sum += ayVolume[v] * gain
 	}
 	return sum
 }
