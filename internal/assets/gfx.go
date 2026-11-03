@@ -11,9 +11,11 @@ type Gfx struct {
 // RGB is a decoded palette colour.
 type RGB struct{ R, G, B uint8 }
 
-// Decode builds the tile and sprite bitmaps. Planes are stored one per ROM;
-// plane 0 is the most significant bit of the pixel value, and bit 7 of each
-// byte is the leftmost pixel.
+// Decode builds the tile and sprite bitmaps. For characters and sprites the
+// three 8 KB planes are (ab12+ab13), (ab10+ab11), (ab8+ab9) in ROM order and
+// the LAST one (ab8+ab9) is the most significant bit of the pixel value, so ab12+ab13
+// is the least significant bit (white text/chef = colour 1). For the background
+// tiles ab00 is the most significant bit. Bit 7 of each byte is the leftmost pixel.
 func (r *ROMs) Decode() *Gfx {
 	g := &Gfx{}
 	for t := 0; t < 1024; t++ {
@@ -21,7 +23,7 @@ func (r *ROMs) Decode() *Gfx {
 			for x := 0; x < 8; x++ {
 				var v uint8
 				for p := 0; p < 3; p++ {
-					v = v<<1 | r.Gfx[p*0x2000+t*8+y]>>(7-uint(x))&1
+					v = v<<1 | r.Gfx[(2-p)*0x2000+t*8+y]>>(7-uint(x))&1
 				}
 				g.Chars[t][y][x] = v
 			}
@@ -34,7 +36,7 @@ func (r *ROMs) Decode() *Gfx {
 			for x := 0; x < 16; x++ {
 				var v uint8
 				for p := 0; p < 3; p++ {
-					v = v<<1 | bit16(r.Gfx[p*0x2000:(p+1)*0x2000], t, x, y)
+					v = v<<1 | bit16(r.Gfx[(2-p)*0x2000:(3-p)*0x2000], t, x, y)
 				}
 				g.Sprites[t][y][x] = v
 			}

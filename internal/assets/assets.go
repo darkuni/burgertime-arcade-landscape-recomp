@@ -16,7 +16,7 @@ type ROMs struct {
 	Main  [0x5000]byte // ab05a1,ab04,ab05,ab06,ab07 -> $b000-$ffff
 	Sound [0x1000]byte // ab14
 	// Gfx is the character/sprite region: three 8 KB bit planes, each made of
-	// two ROMs: plane 0 = ab12+ab13, plane 1 = ab10+ab11, plane 2 = ab8+ab9.
+	// two ROMs: stored as ab12+ab13, ab10+ab11, ab8+ab9 (the last is the pixel's top bit).
 	Gfx     [0x6000]byte
 	BGTiles [0x1800]byte // ab00,ab01,ab02 (3 bit planes)
 	BGMap   [0x0800]byte // ab03
