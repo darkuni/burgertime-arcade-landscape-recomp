@@ -117,3 +117,75 @@ func loadZip(r *ROMs, zr *zip.Reader, src string) (*ROMs, error) {
 	}
 	return r, nil
 }
+
+// MissingError reports ROM files that none of the supplied sets contain.
+type MissingError struct {
+	Missing []string
+	// DataEast is true when the sets look like the Data East parent set
+	// (aa04.9b ...), whose program ROMs differ from the Midway set this
+	// program is built from.
+	DataEast bool
+	Sources  []string
+}
+
+func (e *MissingError) Error() string {
+	return fmt.Sprintf("missing ROM files: %v (looked in %v)", e.Missing, e.Sources)
+}
+
+// LoadMulti reads the ROM set from one or more zips or folders and merges them
+// by file name (first one wins), so split, merged and full MAME sets all work.
+func LoadMulti(paths []string) (*ROMs, error) {
+	files := map[string][]byte{}
+	for _, p := range paths {
+		st, err := os.Stat(p)
+		if err != nil {
+			continue
+		}
+		if st.IsDir() {
+			ents, _ := os.ReadDir(p)
+			for _, e := range ents {
+				if b, err := os.ReadFile(filepath.Join(p, e.Name())); err == nil {
+					if _, ok := files[e.Name()]; !ok {
+						files[e.Name()] = b
+					}
+				}
+			}
+			continue
+		}
+		zr, err := zip.OpenReader(p)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", p, err)
+		}
+		for _, f := range zr.File {
+			name := filepath.Base(f.Name)
+			if _, ok := files[name]; ok {
+				continue
+			}
+			rc, err := f.Open()
+			if err != nil {
+				continue
+			}
+			b, _ := io.ReadAll(rc)
+			rc.Close()
+			files[name] = b
+		}
+		zr.Close()
+	}
+	r := &ROMs{}
+	var missing []string
+	for _, l := range layout {
+		b, ok := files[l.name]
+		if !ok {
+			missing = append(missing, l.name)
+			continue
+		}
+		if err := put(r, l.name, l.dst(r), b); err != nil {
+			return nil, err
+		}
+	}
+	if len(missing) > 0 {
+		_, de := files["aa04.9b"]
+		return nil, &MissingError{Missing: missing, DataEast: de, Sources: paths}
+	}
+	return r, nil
+}

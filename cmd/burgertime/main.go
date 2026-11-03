@@ -1,6 +1,6 @@
 // Burger Time — a native Go rewrite of Data East's 1982 arcade game.
 //
-// The game needs the original ROM set (btimem.zip) for its graphics, level
+// The game needs the original ROM set (btimem.zip, or btime.zip if it holds the same files) for its graphics, level
 // tables and sound data; none of Data East's data is bundled with this program.
 //
 // Controls:  arrows move, Z pepper, 5 insert coin, 1 / 2 start one / two player
@@ -9,6 +9,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"log"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"burgertime/internal/assets"
@@ -147,42 +149,97 @@ func (a *app) Layout(_, _ int) (int, int) {
 	return video.Visible, video.Visible
 }
 
-func findROM() string {
+// findROMs returns every ROM set it can find: the path given on the command
+// line, or btimem.zip / btime.zip (and a "roms" folder) next to the program,
+// in the working directory, or in the home folder. Sets are merged by file name.
+func findROMs() []string {
 	if len(os.Args) > 1 {
-		return os.Args[1]
+		return os.Args[1:]
 	}
-	cands := []string{"btimem.zip"}
+	dirs := []string{"."}
 	if exe, err := os.Executable(); err == nil {
 		d := filepath.Dir(exe)
-		cands = append(cands, filepath.Join(d, "btimem.zip"),
-			filepath.Join(d, "..", "Resources", "btimem.zip"),
-			filepath.Join(d, "..", "..", "..", "btimem.zip"))
-		if home, err := os.UserHomeDir(); err == nil {
-			cands = append(cands, filepath.Join(home, "btimem.zip"))
+		dirs = append(dirs, d, filepath.Join(d, "roms"), filepath.Join(d, "..", "Resources"), filepath.Join(d, "..", "..", ".."))
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, home)
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, d := range dirs {
+		for _, n := range []string{"btimem.zip", "btime.zip"} {
+			c := filepath.Join(d, n)
+			if abs, err := filepath.Abs(c); err == nil {
+				c = abs
+			}
+			if seen[c] {
+				continue
+			}
+			if _, err := os.Stat(c); err == nil {
+				seen[c] = true
+				out = append(out, c)
+			}
 		}
 	}
-	for _, c := range cands {
-		if _, err := os.Stat(c); err == nil {
-			return c
+	return out
+}
+
+// errApp shows a problem in the window, because the Windows build has no
+// console to print to.
+type errApp struct{ msg string }
+
+func (e *errApp) Update() error { return nil }
+func (e *errApp) Draw(s *ebiten.Image) {
+	ebitenutil.DebugPrintAt(s, e.msg, 6, 6)
+}
+func (e *errApp) Layout(_, _ int) (int, int) { return 240, 240 }
+
+func showError(msg string) {
+	log.Print(msg)
+	ebiten.SetWindowTitle("Burger Time - ROM problem")
+	ebiten.SetWindowSize(240*3, 240*3)
+	_ = ebiten.RunGame(&errApp{msg})
+	os.Exit(1)
+}
+
+func romProblem(err error, paths []string) string {
+	var me *assets.MissingError
+	switch {
+	case len(paths) == 0 && assets.Embedded == nil:
+		return "ROM set not found.\n\nPut btimem.zip (or btime.zip)\nnext to burgertime.exe,\nor drag the zip onto the exe.\n\nThis port is built from the\nMidway set (btimem): it needs\nab05a1.12b, ab04.9b, ab06.13b,\nab05.10b, ab07.15b + the ab*\ngraphics/sound files."
+	case errors.As(err, &me):
+		m := "Found:\n"
+		for _, p := range paths {
+			m += "  " + filepath.Base(p) + "\n"
 		}
+		m += "\nbut these files are missing:\n"
+		for i, n := range me.Missing {
+			m += " " + n
+			if i%3 == 2 {
+				m += "\n"
+			}
+		}
+		if me.DataEast {
+			m += "\n\nThis looks like the Data East\nset (aa04.9b ...). The game logic\nhere comes from the Midway set\n(btimem), which has different\nprogram ROMs. Use btimem.zip\nor a merged set that has both."
+		}
+		return m
 	}
-	return ""
+	return fmt.Sprintf("Could not load the ROMs:\n%v", err)
 }
 
 func main() {
-	path := findROM()
-	if path == "" && assets.Embedded == nil {
-		log.Fatal("btimem.zip not found: put it next to burgertime.exe or pass its path as the first argument")
-	}
+	paths := findROMs()
 	var roms *assets.ROMs
 	var err error
-	if path == "" {
+	if len(paths) == 0 && assets.Embedded != nil {
 		roms, err = assets.LoadEmbedded()
+	} else if len(paths) > 0 {
+		roms, err = assets.LoadMulti(paths)
 	} else {
-		roms, err = assets.Load(path)
+		err = fmt.Errorf("no ROM set")
 	}
 	if err != nil {
-		log.Fatal(fmt.Errorf("loading %s: %w", path, err))
+		showError(romProblem(err, paths))
 	}
 	a := &app{
 		g:      game.New(roms),
