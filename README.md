@@ -20,5 +20,5 @@ Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L square pixels / cabinet
 ## Releases
 
 Publishing a GitHub release runs `.github/workflows/release.yml`, which builds
-`burgertime.exe` (Windows) and `BurgerTime-mac.zip` (universal macOS app) and attaches
+`burgertime.exe` (Windows), `BurgerTime-linux.tar.gz` (Linux x86_64, runs on Steam Deck / SteamOS desktop mode) and `BurgerTime-mac.zip` (universal macOS app) and attaches
 them to the release. Neither contains the ROM: put your own `btimem.zip` next to the game.
