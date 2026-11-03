@@ -5,6 +5,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/png"
 	"os"
 	"strconv"
@@ -66,6 +67,11 @@ func main() {
 			fn := fmt.Sprintf("%s/f%04d.png", os.Args[2], f)
 			fh, _ := os.Create(fn)
 			png.Encode(fh, img)
+			fh.Close()
+			land := image.NewRGBA(image.Rect(0, 0, video.LandscapeW, video.LandscapeH))
+			video.Landscape(land, img)
+			fh, _ = os.Create(fmt.Sprintf("%s/f%04d_land.png", os.Args[2], f))
+			png.Encode(fh, land)
 			fh.Close()
 		}
 	}

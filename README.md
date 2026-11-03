@@ -28,13 +28,12 @@ version of the game and are not supported yet.
 ## Status
 
 - Game logic, sound and controls: complete, verified against the original (see above).
-- **Landscape layout: not done yet.** Unlike our Time Pilot port, Burger Time still shows the
-  original square picture (L toggles the cabinet's 3:4 shape). No widescreen HUD yet.
+- Landscape layout: done (default). The maze sits in the middle of a 16:9 picture and the score, hi-score, pepper, spare chefs and level icons move to the side panels. L cycles landscape / original square / the cabinet's 3:4 shape.
 - Builds: Windows, Linux x86_64 (Steam Deck / SteamOS desktop mode), macOS. Only Windows and the
   ROM loader have been tested on real hardware so far.
 
 ## Controls
-Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L square pixels / cabinet 3:4 shape, F11 full screen, Esc quit.
+Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L cycle landscape / square / cabinet 3:4, F11 full screen, Esc quit.
 
 ## Releases
 

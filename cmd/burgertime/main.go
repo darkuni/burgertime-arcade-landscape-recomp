@@ -4,7 +4,7 @@
 // tables and sound data; none of Data East's data is bundled with this program.
 //
 // Controls:  arrows move, Z pepper, 5 insert coin, 1 / 2 start one / two player
-// game, L switch between square pixels and the cabinet's 3:4 picture,
+// game, L cycle landscape / original square / cabinet 3:4,
 // F11 toggle full screen, Esc quit.
 package main
 
@@ -42,8 +42,10 @@ type app struct {
 	synth  *sound.Synth
 	acc    float64
 	coin   int // frames left that the coin switch is shown as closed
-	// cabinet: show the picture at the cabinet's 3:4 shape instead of square pixels
-	cabinet bool
+	// view: 0 landscape (default), 1 original square picture, 2 the cabinet's 3:4 shape
+	view   int
+	land   *image.RGBA
+	landIm *ebiten.Image
 }
 
 // pcm streams the synthesiser as 16-bit stereo little-endian samples.
@@ -72,7 +74,7 @@ func (a *app) Update() error {
 		return ebiten.Termination
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
-		a.cabinet = !a.cabinet
+		a.view = (a.view + 1) % 3
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
@@ -134,16 +136,25 @@ func (a *app) Draw(screen *ebiten.Image) {
 	st := video.State{VRAM: a.g.VRAM, CRAM: a.g.CRAM, Palette: a.g.Palette, VidCtl: a.g.VidCtl}
 	st.Scroll[0] = a.g.Scroll
 	img := a.r.Image(&st)
+	if a.view == 0 {
+		video.Landscape(a.land, img)
+		a.landIm.WritePixels(a.land.Pix)
+		screen.DrawImage(a.landIm, nil)
+		return
+	}
 	a.screen.WritePixels(img.Pix)
 	op := &ebiten.DrawImageOptions{}
-	if a.cabinet {
+	if a.view == 2 {
 		op.GeoM.Scale(1, 4.0/3.0)
 	}
 	screen.DrawImage(a.screen, op)
 }
 
 func (a *app) Layout(_, _ int) (int, int) {
-	if a.cabinet {
+	switch a.view {
+	case 0:
+		return video.LandscapeW, video.LandscapeH
+	case 2:
 		return video.Visible, video.Visible * 4 / 3
 	}
 	return video.Visible, video.Visible
@@ -245,8 +256,9 @@ func main() {
 		g:      game.New(roms),
 		r:      video.New(roms.Decode()),
 		screen: ebiten.NewImage(video.Visible, video.Visible),
+		land:   image.NewRGBA(image.Rect(0, 0, video.LandscapeW, video.LandscapeH)),
+		landIm: ebiten.NewImage(video.LandscapeW, video.LandscapeH),
 	}
-	_ = image.Rect
 	a.synth = sound.NewSynth(roms.Sound[:], sampleRate)
 	ctx := audio.NewContext(sampleRate)
 	player, err := ctx.NewPlayer(&pcm{s: a.synth})
@@ -256,7 +268,7 @@ func main() {
 	player.SetBufferSize(60 * time.Millisecond)
 	player.Play()
 	ebiten.SetWindowTitle("Burger Time")
-	ebiten.SetWindowSize(video.Visible*3, video.Visible*3)
+	ebiten.SetWindowSize(video.LandscapeW*3, video.LandscapeH*3)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetTPS(60)
 	if err := ebiten.RunGame(a); err != nil {
