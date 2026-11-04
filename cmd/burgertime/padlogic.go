@@ -10,6 +10,7 @@ type padTracker struct {
 	prevSel   bool
 	prevView  bool
 	prevLB    bool
+	prevR3    bool
 	connected bool
 }
 

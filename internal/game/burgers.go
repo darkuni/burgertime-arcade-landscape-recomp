@@ -209,6 +209,7 @@ func (g *Game) sub_e6fd(y byte) {
 			continue
 		}
 		R[0xc9]++
+		g.emit(EvSquash, int(s&3), 0)
 		R[0xca] = x
 		R[0x68+uint16(x)] = s&0x0f | 0x20
 		R[0x0e] = y
@@ -220,6 +221,7 @@ func (g *Game) sub_e6fd(y byte) {
 	if n == 0 {
 		return
 	}
+	g.emit(EvDrop, 0, g.scorePoints(g.Rom(0xe766+uint16(n))))
 	g.sub_ea8f(g.Rom(0xe766 + uint16(n)))
 	sp := uint16(g.Rom(0xec6f + uint16(R[0xca])))
 	g.Wr(0x1801+sp, g.Rom(0xe76c+uint16(n)))
@@ -252,6 +254,7 @@ func (g *Game) sub_ec8b() {
 		if !g.cmpGE(a, R[4]) {
 			continue
 		}
+		g.emit(EvSquash, int(R[0x68+x]&3), 0)
 		R[0x68+x] = R[0x68+x]&0x0f | 0x80
 		R[0x99+x] = 0x42
 		g.sub_eb61(0x0c)
@@ -262,6 +265,7 @@ func (g *Game) sub_ec8b() {
 func (g *Game) sub_e8cb() (y byte) {
 	R := &g.RAM
 	p := uint16(R[zPlayer])
+	g.emit(EvPiece, 0, 0)
 	R[0x65+p]++
 	y = R[0x63]
 	R[5] = R[0x65+p]
@@ -330,6 +334,7 @@ func (g *Game) sub_e9f5() {
 	g.Wr(ptr+0x21, 0)
 	R[0xc4] = 2
 	R[0x60]++
+	g.emit(EvBonus, 0, g.scorePoints(g.Rom(0xea8a+k)))
 	g.sub_ea8f(g.Rom(0xea8a + k))
 	pl := uint16(R[zPlayer])
 	g.carry = false
@@ -434,6 +439,7 @@ func (g *Game) sub_ebad() {
 		case 0x28:
 			g.Wr(0x1801+sp, g.Rom(0xec7f+kind))
 		case 0x20:
+			g.emit(EvDrop, 0, g.scorePoints(g.Rom(0xec85+kind)))
 			g.sub_ea8f(g.Rom(0xec85 + kind))
 			g.Wr(0x1801+sp, g.Rom(0xec82+kind))
 			g.Wr(0x1800+sp, 1)

@@ -32,10 +32,24 @@ version of the game and are not supported yet.
 - Builds: Windows, Linux x86_64 (Steam Deck / SteamOS desktop mode), macOS. Only Windows and the
   ROM loader have been tested on real hardware so far.
 
+## Burger Time+ (side-panel statistics)
+
+The landscape view has a "Burger Time+" mode with extra read-outs in the side panels. It is on by default and the original look is one key away: **P** (keyboard) or a **right-stick click** (gamepad) switches it off and on, and the choice is remembered. The original square picture is still **L**, and `burgertime -classic` starts with the original square picture and no statistics.
+
+Everything is read from the running game (exact, nothing is guessed from the picture) and is kept per player, so a two player game shows the stats of whoever's turn it is ("PLAYER 2 STATS"); both scores are shown all game.
+
+- **Level / steps** - the current level, and how far the chef has walked (one step is one maze tile of walking).
+- **Pieces / bonus / shots** - burger pieces that reached their plate, bonus items picked up (ice cream, coffee, fries), pepper shakes.
+- **Best drop** - the most points one burger drop has paid for squashed enemies, kept across games; this game's best is under it.
+- **Enemy tally** - a picture of each enemy (hot dog, pickle, egg) with how many you **peppered** and how many you **crushed** with burger pieces. Bright numbers are this game, dim numbers are all-time.
+- **All time** - games played, best level, total steps and pieces, per player seat, saved in your user config folder (`burgertime/stats.json`).
+
+The enemy pictures are drawn from your own ROMs at start-up; nothing is bundled.
+
 ## Controls
 Arrows move, Z (or Space) pepper, 5 coin, 1 / 2 start, L cycle landscape / square / cabinet 3:4, F11 full screen, Esc quit.
 
-**Gamepad** (any standard controller, Steam Deck included): D-pad / left stick move, A or B pepper, Select = coin, Start = 1 player, X or Y = 2 players, right bumper = change view, hold Select + Start for a second to quit.
+**Gamepad** (any standard controller, Steam Deck included): D-pad / left stick move, A or B pepper, Select = coin, Start = 1 player, X or Y = 2 players, right bumper = change view, right-stick click = Burger Time+ on/off, hold Select + Start for a second to quit.
 
 ### Original vs relaxed controls
 

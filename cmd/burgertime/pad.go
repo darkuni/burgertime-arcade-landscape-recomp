@@ -13,6 +13,7 @@ import "github.com/hajimehoshi/ebiten/v2"
 //	X or Y                2 player start
 //	Right bumper          change view
 //	Left bumper           toggle relaxed controls
+//	Right stick click     toggle Burger Time+ panels
 //	Select + Start held   quit (about one second)
 type padState struct {
 	left, right, up, down bool
@@ -21,12 +22,13 @@ type padState struct {
 	start1, start2        bool
 	view                  bool // one-frame pulse
 	relaxed               bool // one-frame pulse: toggle relaxed controls
+	plus                  bool // one-frame pulse: toggle Burger Time+ panels (right stick click)
 	quit                  bool
 }
 
 func (t *padTracker) poll() padState {
 	var s padState
-	var sel, start, view, lb bool
+	var sel, start, view, lb, r3 bool
 	ids := ebiten.AppendGamepadIDs(nil)
 	t.connected = false
 	for _, id := range ids {
@@ -47,6 +49,7 @@ func (t *padTracker) poll() padState {
 		start = start || b(ebiten.StandardGamepadButtonCenterRight)
 		view = view || b(ebiten.StandardGamepadButtonFrontTopRight)
 		lb = lb || b(ebiten.StandardGamepadButtonFrontTopLeft)
+		r3 = r3 || b(ebiten.StandardGamepadButtonRightStick)
 		if b(ebiten.StandardGamepadButtonRightLeft) || b(ebiten.StandardGamepadButtonRightTop) {
 			s.start2 = true
 		}
@@ -59,5 +62,7 @@ func (t *padTracker) poll() padState {
 	t.prevView = view
 	s.relaxed = lb && !t.prevLB
 	t.prevLB = lb
+	s.plus = r3 && !t.prevR3
+	t.prevR3 = r3
 	return s
 }

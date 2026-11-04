@@ -19,6 +19,9 @@ func (g *Game) sub_e775() {
 		if a < R[4] || a-0x18 >= R[4] {
 			continue
 		}
+		if R[0x68+uint16(x)]&0x10 == 0 {
+			g.emit(EvPepperHit, int(R[0x68+uint16(x)]&3), 0)
+		}
 		R[0x68+uint16(x)] |= 0x10
 		lvl := R[0x61+uint16(R[zPlayer])]
 		if lvl >= 8 {
@@ -48,6 +51,7 @@ func (g *Game) sub_d899() {
 		g.carry = true
 		R[0x2b+x] = g.bcdSbc(R[0x2b+x], 1)
 		if R[zPlaying] != 0 {
+			g.emit(EvPepperShot, 0, 0)
 			g.sub_cb6e()
 		}
 	case 0x09:

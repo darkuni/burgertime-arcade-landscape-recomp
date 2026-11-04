@@ -9,7 +9,10 @@
 //
 // Gamepad: D-pad/left stick move, A or B pepper, Select coin, Start 1 player,
 // X or Y 2 players, right bumper change view, left bumper toggle relaxed
-// controls (R on the keyboard), hold Select+Start to quit.
+// controls (R on the keyboard), click the right stick to switch Burger Time+
+// (side-panel statistics) on or off (P on the keyboard), hold Select+Start to quit.
+//
+// Option -classic starts with the original square picture and no statistics.
 package main
 
 import (
@@ -30,6 +33,7 @@ import (
 	"burgertime/internal/assets"
 	"burgertime/internal/game"
 	"burgertime/internal/sound"
+	"burgertime/internal/stats"
 	"burgertime/internal/video"
 )
 
@@ -53,8 +57,13 @@ type app struct {
 	landIm *ebiten.Image
 	pad    padTracker
 	// relaxed forgives near misses of the four-way joystick (R key / left bumper)
-	relaxed bool
-	notice  int // frames left to show the controls message
+	relaxed   bool
+	notice    int // frames left to show the controls message
+	noticeMsg string
+	// plus shows the Burger Time+ statistics panels in the landscape view
+	plus     bool
+	tr       *stats.Tracker
+	trFrames int
 }
 
 // pcm streams the synthesiser as 16-bit stereo little-endian samples.
@@ -115,7 +124,20 @@ func (a *app) Update() error {
 	if pd.relaxed || inpututil.IsKeyJustPressed(ebiten.KeyR) {
 		a.relaxed = !a.relaxed
 		a.notice = 150
+		a.noticeMsg = "CONTROLS: ORIGINAL"
+		if a.relaxed {
+			a.noticeMsg = "CONTROLS: RELAXED"
+		}
 		saveRelaxed(a.relaxed)
+	}
+	if pd.plus || inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		a.plus = !a.plus
+		a.notice = 150
+		a.noticeMsg = "BURGER TIME+: OFF (ORIGINAL)"
+		if a.plus {
+			a.noticeMsg = "BURGER TIME+: ON"
+		}
+		savePlus(a.plus)
 	}
 	a.g.Relaxed = a.relaxed
 	if pd.left {
@@ -167,10 +189,16 @@ func (a *app) Update() error {
 			a.coin--
 		}
 		a.g.Frame()
+		a.tr.Frame()
 		for _, c := range a.g.SndCmds {
 			a.synth.Command(c)
 		}
 		a.g.SndCmds = a.g.SndCmds[:0]
+	}
+	a.trFrames++
+	if a.trFrames >= 600 && a.tr.Dirty {
+		a.trFrames = 0
+		a.saveStats()
 	}
 	return nil
 }
@@ -181,7 +209,12 @@ func (a *app) Draw(screen *ebiten.Image) {
 	st.Scroll[0] = a.g.Scroll
 	img := a.r.Image(&st)
 	if a.view == 0 {
-		video.Landscape(a.land, img)
+		if a.plus {
+			video.LandscapePlus(a.land, img)
+			stats.DrawPanels(a.land, a.tr)
+		} else {
+			video.Landscape(a.land, img)
+		}
 		a.landIm.WritePixels(a.land.Pix)
 		screen.DrawImage(a.landIm, nil)
 		return
@@ -208,8 +241,14 @@ func (a *app) Layout(_, _ int) (int, int) {
 // line, or btimem.zip / btime.zip (and a "roms" folder) next to the program,
 // in the working directory, or in the home folder. Sets are merged by file name.
 func findROMs() []string {
-	if len(os.Args) > 1 {
-		return os.Args[1:]
+	var given []string
+	for _, a := range os.Args[1:] {
+		if !strings.HasPrefix(a, "-") {
+			given = append(given, a)
+		}
+	}
+	if len(given) > 0 {
+		return given
 	}
 	dirs := []string{"."}
 	if exe, err := os.Executable(); err == nil {
@@ -296,14 +335,30 @@ func main() {
 	if err != nil {
 		showError(romProblem(err, paths))
 	}
+	classic := false
+	for _, arg := range os.Args[1:] {
+		if arg == "-classic" || arg == "--classic" {
+			classic = true
+		}
+	}
 	a := &app{
 		relaxed: loadRelaxed(),
+		plus:    loadPlus() && !classic,
 		g:       game.New(roms),
 		r:       video.New(roms.Decode()),
 		screen:  ebiten.NewImage(video.Visible, video.Visible),
 		land:    image.NewRGBA(image.Rect(0, 0, video.LandscapeW, video.LandscapeH)),
 		landIm:  ebiten.NewImage(video.LandscapeW, video.LandscapeH),
 	}
+	if classic {
+		a.view = 1 // the original square picture
+	}
+	a.tr = stats.New(a.g)
+	a.tr.Icons = stats.EnemyIcons(roms)
+	if f := statsFile(); f != "" {
+		a.tr.Load(f)
+	}
+	a.g.OnEvent = a.tr.Event
 	a.synth = sound.NewSynth(roms.Sound[:], sampleRate)
 	ctx := audio.NewContext(sampleRate)
 	player, err := ctx.NewPlayer(&pcm{s: a.synth})
@@ -319,6 +374,54 @@ func main() {
 	if err := ebiten.RunGame(a); err != nil {
 		log.Fatal(err)
 	}
+	a.saveStats()
+}
+
+// saveStats writes the all-time statistics.
+func (a *app) saveStats() {
+	if f := statsFile(); f != "" {
+		_ = os.MkdirAll(filepath.Dir(f), 0o755)
+		_ = a.tr.Save(f)
+	}
+}
+
+func statsFile() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "burgertime", "stats.json")
+}
+
+// Burger Time+ (the statistics panels) is on by default; the choice is remembered.
+func plusFile() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "burgertime", "plus.txt")
+}
+
+func loadPlus() bool {
+	if f := plusFile(); f != "" {
+		if b, err := os.ReadFile(f); err == nil {
+			return strings.TrimSpace(string(b)) != "classic"
+		}
+	}
+	return true
+}
+
+func savePlus(on bool) {
+	f := plusFile()
+	if f == "" {
+		return
+	}
+	v := "classic"
+	if on {
+		v = "plus"
+	}
+	_ = os.MkdirAll(filepath.Dir(f), 0o755)
+	_ = os.WriteFile(f, []byte(v+"\n"), 0o644)
 }
 
 func (a *app) drawNotice(screen *ebiten.Image) {
@@ -326,10 +429,7 @@ func (a *app) drawNotice(screen *ebiten.Image) {
 		return
 	}
 	a.notice--
-	msg := "CONTROLS: ORIGINAL"
-	if a.relaxed {
-		msg = "CONTROLS: RELAXED"
-	}
+	msg := a.noticeMsg
 	x, y := 2, 2
 	if a.view == 0 {
 		x, y = 4, 190

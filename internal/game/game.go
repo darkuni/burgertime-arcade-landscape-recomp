@@ -68,6 +68,9 @@ type Game struct {
 	// Relaxed forgives near misses of the four-way joystick (see relaxed.go).
 	Relaxed bool
 
+	// OnEvent, when set, is told what happens in the game (statistics).
+	OnEvent func(Event)
+
 	// Dev hooks (nil in the shipped game).
 	Legacy Legacy
 
